@@ -23,3 +23,7 @@ blockchain/keystore/**
 blockchain/history
 
 # End of https://www.toptal.com/developers/gitignore/api/soliditytruffle
+ 
+# hardhat
+cache
+artifacts
