@@ -165,7 +165,13 @@ contract UniTradeMarketOrders is Ownable, ReentrancyGuard {
             amounts[1] = afterBalance.sub(beforeBalance);
         }
 
+        emit OrderExecuted(_taker, tokenIn, tokenOut, amounts, unitradeFee);
+    }
+
+    function stakeAndBurn() external {
         // Transfer fee to incinerator/staker
+        uint256 unitradeFee = address(this).balance;
+
         if (unitradeFee > 0) {
             uint256 burnAmount = unitradeFee.mul(orderBook.splitMul()).div(orderBook.splitDiv());
             if (burnAmount > 0) {
@@ -176,8 +182,6 @@ contract UniTradeMarketOrders is Ownable, ReentrancyGuard {
                 orderBook.staker().deposit{value: stakeAmount}(); //no require
             }
         }
-
-        emit OrderExecuted(_taker, tokenIn, tokenOut, amounts, unitradeFee);
     }
 
     function createPair(address tokenA, address tokenB)
