@@ -62,17 +62,18 @@ describe.only("UniTradeMarketOrders", () => {
     await marketOrders.deployed()
   })
 
-  describe.only("ETH->TOKEN - standard token", () => {
+  describe("ETH->TOKEN - standard token", () => {
     let orderParams: any[]
 
     beforeEach(async () => {
-      orderParams = [orderType.EthForTokens, weth.address, dai.address, 1000, 200]
+      orderParams = [orderType.EthForTokens, weth.address, dai.address, parseEther("1"), parseEther("730")]
     })
 
     it("should return swap amounts", async () => {
-      const [inAmount, outAmount] = await marketOrders.callStatic.executeOrder(...orderParams, { value: orderParams[3] })
-      expect(inAmount).to.equal(998)
-      expect(outAmount).to.equal(732705)
+      const [, , , amountInOffered] = orderParams
+      const [inAmount, outAmount] = await marketOrders.callStatic.executeOrder(...orderParams, { value: amountInOffered })
+      expect(inAmount).to.equal(parseEther("0.998"))
+      expect(outAmount).to.equal("732697527087458939690")
     })
 
     it("should execute an order", async () => {
@@ -85,10 +86,24 @@ describe.only("UniTradeMarketOrders", () => {
       // then
       await expect(tx)
         .to.emit(marketOrders, "OrderExecuted")
-        .withArgs(await wallet.getAddress(), tokenIn, tokenOut, [998, 732705], 2)
+        .withArgs(await wallet.getAddress(), tokenIn, tokenOut, [parseEther("0.998"), "732697527087458939690"], 2000000000000000)
 
       // expect(await provider.getBalance(mockIncinerator.address)).to.equal(6)
       // expect(await provider.getBalance(mockStaker.address)).to.equal(4)
+      expect(await provider.getBalance(marketOrders.address)).to.equal("2000000000000000")
+    })
+
+    it("should stake and burn", async () => {
+      // given
+      const [, , , amountInOffered] = orderParams
+      expect(await provider.getBalance(marketOrders.address)).to.equal(0)
+      await marketOrders.executeOrder(...orderParams, { value: amountInOffered })
+      expect(await provider.getBalance(marketOrders.address)).to.equal("2000000000000000")
+
+      // when
+      await marketOrders.stakeAndBurn()
+
+      // then
       expect(await provider.getBalance(marketOrders.address)).to.equal(0)
     })
   })
@@ -172,6 +187,21 @@ describe.only("UniTradeMarketOrders", () => {
 
       // expect(await provider.getBalance(mockIncinerator.address)).to.equal(12)
       // expect(await provider.getBalance(mockStaker.address)).to.equal(8)
+      expect(await provider.getBalance(marketOrders.address)).to.equal(expectedFee)
+    })
+
+    it("should stake and burn", async () => {
+      // given
+      const [, , , amountInOffered] = orderParams
+      expect(await provider.getBalance(marketOrders.address)).to.equal(0)
+      await marketOrders.executeOrder(...orderParams, { value: amountInOffered })
+      expect(await provider.getBalance(marketOrders.address)).to.equal("1000002709457082929248")
+
+      // when
+      await marketOrders.stakeAndBurn()
+
+      // then
+      // expect(await provider.getBalance(marketOrders.address)).to.equal("1000002709457082929248")
       expect(await provider.getBalance(marketOrders.address)).to.equal(0)
     })
   })
