@@ -173,11 +173,12 @@ contract UniTradeMarketOrders is Ownable, ReentrancyGuard {
         uint256 unitradeFee = address(this).balance;
 
         if (unitradeFee > 0) {
-            uint256 burnAmount = unitradeFee.mul(orderBook.splitMul()).div(orderBook.splitDiv());
-            if (burnAmount > 0) {
-                orderBook.incinerator().burn{value: burnAmount}(); //no require
-            }
-            uint256 stakeAmount = unitradeFee.sub(burnAmount);
+            // uint256 burnAmount = unitradeFee.mul(orderBook.splitMul()).div(orderBook.splitDiv());
+            // if (burnAmount > 0) {
+            //     orderBook.incinerator().burn{value: burnAmount}(); //no require
+            // }
+            // uint256 stakeAmount = unitradeFee.sub(burnAmount);
+            uint256 stakeAmount = unitradeFee;
             if(stakeAmount > 0) {
                 orderBook.staker().deposit{value: stakeAmount}(); //no require
             }

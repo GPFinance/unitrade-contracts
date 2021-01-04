@@ -4,6 +4,7 @@ import { BigNumber, Contract, Signer } from "ethers"
 // import { deployContract, deployMockContract, MockProvider, solidity } from "ethereum-waffle"
 
 import { getUniswapPairAddress } from "./helpers"
+import { parseEther } from "ethers/lib/utils"
 
 // const UNISWAP_V2_ROUTER_ABI = artifacts.require("IUniswapV2Router02").abi
 // const UNISWAP_V2_PAIR_ABI = artifacts.require("IUniswapV2Pair").abi
@@ -86,6 +87,8 @@ describe.only("UniTradeMarketOrders", () => {
         .to.emit(marketOrders, "OrderExecuted")
         .withArgs(await wallet.getAddress(), tokenIn, tokenOut, [998, 732705], 2)
 
+      // expect(await provider.getBalance(mockIncinerator.address)).to.equal(6)
+      // expect(await provider.getBalance(mockStaker.address)).to.equal(4)
       expect(await provider.getBalance(marketOrders.address)).to.equal(0)
     })
   })
@@ -132,49 +135,43 @@ describe.only("UniTradeMarketOrders", () => {
     })
   })
 
-  describe("TOKEN->ETH - standard token", () => {
+  describe.only("TOKEN->ETH - standard token", () => {
     let orderParams: any[]
 
     beforeEach(async () => {
-      orderParams = [orderType.TokensForEth, dai.address, weth.address, 1000, 2000]
-      const [, tokenIn, tokenOut, amountInOffered, amountOutExpected] = orderParams
+      orderParams = [orderType.TokensForEth, dai.address, weth.address, parseEther("1000"), parseEther("1.35")]
+      const [, , , amountInOffered] = orderParams
 
-      const pairAddress = getUniswapPairAddress(tokenIn, tokenOut)
-      await uniswapV2Factory.mock.getPair.withArgs(tokenIn, tokenOut).returns(pairAddress)
+      // getting some dai
+      await uniswapV2Router.swapExactETHForTokens(0, [WETH_ADDRESS, DAI_ADDRESS], await wallet.getAddress(), 999999999999, {
+        value: parseEther("10"),
+      })
 
       await dai.approve(marketOrders.address, amountInOffered)
-
-      await uniswapV2Router.mock.swapExactTokensForETHSupportingFeeOnTransferTokens
-        .withArgs(amountInOffered, amountOutExpected, [tokenIn, tokenOut], marketOrders.address, deadline)
-        .returns()
     })
 
     it("should return swap amounts", async () => {
-      const response = await marketOrders.connect(wallet).callStatic.executeOrder(...orderParams)
-      expect(response[0]).to.equal(1000)
-      // Note: Receiving 0 instead because mock contract doesn't transfer funds
-      expect(response[1]).to.equal(0 /* 2000 */)
+      const [inAmount, outAmount] = await marketOrders.connect(wallet).callStatic.executeOrder(...orderParams)
+      const [, , , amountInOffered] = orderParams
+      expect(inAmount).to.equal(amountInOffered)
+      expect(outAmount).to.equal("1354186354753848361")
     })
 
     it("should execute an order", async () => {
       // given
-      const [, tokenIn, tokenOut, amountInOffered, amountOutExpected] = orderParams
+      const [, tokenIn, tokenOut, amountInOffered] = orderParams
 
       // when
       const tx = marketOrders.connect(wallet).executeOrder(...orderParams)
 
       // then
+      const expectedFee = "2708954382807601"
       await expect(tx)
         .to.emit(marketOrders, "OrderExecuted")
-        // Note: Receiving 0 instead because mock contract doesn't transfer funds
-        .withArgs(await wallet.getAddress(), tokenIn, tokenOut, [1000, 0 /* 2000 */], 0 /*10*/)
+        .withArgs(await wallet.getAddress(), tokenIn, tokenOut, [amountInOffered, "1354477191403800867"], expectedFee)
 
-      // Note: Receiving 0 instead because mock contract doesn't transfer funds
-      expect(await provider.getBalance(mockIncinerator.address)).to.equal(0 /*12*/)
-
-      // Note: Receiving 0 instead because mock contract doesn't transfer funds
-      expect(await provider.getBalance(mockStaker.address)).to.equal(0 /*8*/)
-
+      // expect(await provider.getBalance(mockIncinerator.address)).to.equal(12)
+      // expect(await provider.getBalance(mockStaker.address)).to.equal(8)
       expect(await provider.getBalance(marketOrders.address)).to.equal(0)
     })
   })
